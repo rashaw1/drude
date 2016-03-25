@@ -155,7 +155,9 @@ contains
     
     ! Get the values of a, b, c
     call calc_abc(rk, R, avals, bvals, cvals, avecs, bvecs, cvecs)
-
+    write(*, *) (avals(i, :), i = 1, N)
+    write(*, *) (bvals(i, :), i = 1, N)
+    write(*, *) (cvals(i, :), i = 1, N)      
     ! Calculate tau, zeta, and xi values
     outer: do i = 1, N-1
        inner: do j = i+1, N

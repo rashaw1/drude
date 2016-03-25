@@ -55,7 +55,10 @@ program n_drude_test
   rk(4, 1) = 0.5d0
   rk(4, 2) = -0.1d0
   rk(4, 3) = 0.6d0
-
+  R(4, 1) = 0.0d0
+  R(4, 2) = 0.0d0
+  R(4, 3) = 0.0d0
+  
   ! Calculate values and print out
   call calc_wf_derivatives(rk, R, wf, grads, laplacian)
 
