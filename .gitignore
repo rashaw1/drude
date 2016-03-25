@@ -1,5 +1,13 @@
+#Files to ignore
 *.txt
 *.x
 *.o
 *.so
 *.out
+
+# Subdirectory
+./ndrude/*.txt
+./ndrude/*.x
+./ndrude/*.o
+./ndrude/*.so
+./ndrude/*.out
