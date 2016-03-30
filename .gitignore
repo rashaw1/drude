@@ -11,3 +11,8 @@
 ./ndrude/*.o
 ./ndrude/*.so
 ./ndrude/*.out
+./twodrude/*.txt
+./twodrude/*.x
+./twodrude/*.o
+./twodrude/*.so
+./twodrude/*.out
