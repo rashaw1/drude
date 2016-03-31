@@ -23,6 +23,7 @@ int main(int argc, char* argv[])
     int minexp = -2; // minimum exponent
 	int nexps = 2; // number of exponents
 	double base = 2.0;
+	double base2 = 2.0;
 	double zetaval = 1.0;
 	
 	// Geometry
@@ -36,15 +37,19 @@ int main(int argc, char* argv[])
 	std::cin >> omega;
 	std::cout << "q:\n";
 	std::cin >> q;
-	std::cout << "Enter R:\n";
+	std::cout << "R:\n";
 	std::cin >> R(0, 0);
-
+	std::cout << "Zeta:\n";
+	std::cin >> zetaval;
+	
 	std::cout << "Min. exp:\n";
 	std::cin >> minexp;
 	std::cout << "No. exps:\n";
 	std::cin >> nexps;
 	std::cout << "Exponent base:\n";
 	std::cin >> base;
+	std::cout << "Zeta base:\n";
+	std::cin >> base2;
 	
     // Initialise array of basis functions
 	std::vector<BasisFunction> bfs;
@@ -55,30 +60,59 @@ int main(int argc, char* argv[])
 	Eigen::MatrixXd beta(N, N);
 	Eigen::MatrixXd gamma(N, N);
 
+	int nbfs = 0;
+	
 	// Make basis functions
 	for (int i = 0; i < nexps; i++){
 
 		alpha(0, 1) = std::pow(base, minexp + i);
-
+		if (i == nexps) alpha(0, 1) = 0.0;
+		
 		for (int j = 0; j < nexps; j++){
 
 			beta(1, 0) = std::pow(base, minexp + j);
-
+			if (j == nexps) beta(1, 0) = 0.0;
+			
 			for(int k = 0; k < nexps; k++){
 
 				gamma(0, 1) = std::pow(base, minexp + k);
+				if (k == nexps) gamma(0, 1) = 0.0;
 
-				BasisFunction bftemp(N, zeta, alpha, beta, gamma, R);
-				bfs.push_back(bftemp);
+				for (int m = 0; m < 1; m++){
+					zeta[0] = zetaval*std::pow(base2, m);
+
+					for (int n = 0; n < 1; n++){
+						zeta[1] = zetaval*std::pow(base2, n);
+				
+						BasisFunction bftemp(N, zeta, alpha, beta, gamma, R);
+						if(!bftemp.istoosmall()){
+							bfs.push_back(bftemp);
+							nbfs++;
+						}
+					}
+				}
 			}
 		}
 	}
-
+	std::cout << "Total number of basis functions = " << nbfs << "\n";
+	
 	// Form and diagonalise hamiltonian matrix
-	Eigen::MatrixXd D = hamiltonian(N, nexps*nexps*nexps, bfs, R, mu, omega, q); 
+	Eigen::MatrixXd D = hamiltonian(N, nbfs, bfs, R, mu, omega, q); 
 
 	std::cout << "Hamiltonian formed and solved.\n";
-	std::cout << "Lowest eigenvalue = " << D(0, 0) << "\n"; 
+
+  	std::cout << "Lowest eigenvalue = " ;
+
+	bool more = true;
+	int i = 0;
+	while ( more ) {
+		std::cout << D(i) << "\n";
+		std::cout << "Another?\n";
+		std::cin >> i;
+		if ( i <= 0){
+			more = false;
+		} 
+	}
 	
 	return 0;
 }

@@ -9,6 +9,7 @@
 #include "basisfunction.hpp"
 #include <iostream>
 #include <cmath>
+#include <Eigen/Eigenvalues>
 
 // Constructor
 BasisFunction::BasisFunction(int N, std::vector<double> zeta,
@@ -82,16 +83,12 @@ BasisFunction::BasisFunction(int N, std::vector<double> zeta,
 
 	// Then k = B^T R
 	k = B.transpose()*R;
+	
+	// Calculate norm
+	toosmall = false;
 
-	// Finally calculate J_R(C)
-	JR = 0.0;
-	// Calculate the R.C.R part
-	for (int i = 0; i < N-1; i++){
-		for (int j = 0; j < N-1; j++)
-			JR += C(i, j) * ( R(i, 0)*R(j, 0) + R(i, 1)*R(j, 1) + R(i, 2)*R(j, 2) );
-	}
-	// Exponentiate
-	JR = std::exp(-1.0*JR);
+	calcNorm(R, N);
+	
 }
 
 // Copy constructor
@@ -102,4 +99,49 @@ BasisFunction::BasisFunction(const BasisFunction& other)
 	C = other.C;
 	k = other.k;
 	JR = other.JR;
-}					 
+	norm = other.norm;
+}
+
+void BasisFunction::calcNorm(Eigen::MatrixXd& R, int N)
+{
+	// Calculate A_inv and detA
+    // Diagonalise 2A
+	Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> solver(2.0*A);
+	Eigen::MatrixXd U = solver.eigenvectors(); // Eigenvectors
+	Eigen::MatrixXd D = solver.eigenvalues().asDiagonal(); // Eigenvalues
+
+	
+	// Compute determinant and inverse of 2A
+	Eigen::MatrixXd D_inv = D;
+	double detA = 1.0;
+	for (int i = 0; i < N; i++){
+		D_inv(i, i) = 1.0/D(i, i);
+		detA *= D(i, i);
+	}
+	Eigen::MatrixXd A_inv = U * D_inv * U.transpose();
+
+	// Calculate the K factor
+	// K = exp[R.(1/4 2B. (2A)^-1 . 2B - 2C).R]
+	double K = 0.0;
+	Eigen::MatrixXd tempMat = B * A_inv * B.transpose() - 2.0*C;
+	for (int i = 0; i < N-1; i++){
+		for (int j = 0; j < N-1; j++){
+			double temp = R(i, 0) * R(j, 0);
+			temp +=  R(i, 1) * R(j, 1);
+			temp += R(i, 2) * R(j, 2);
+			K += tempMat(i, j) * temp;
+		}
+	}
+	JR = K;
+		
+	// Calculate the overlap integral
+	norm = std::pow(M_PI, N)/detA;
+	norm = std::pow(norm, 0.75);
+	norm = 1.0/norm;
+	
+}
+
+double BasisFunction::getNorm()
+{
+	return norm;
+}

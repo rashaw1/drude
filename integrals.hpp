@@ -20,14 +20,15 @@
 // Takes the no. of oscillators, the matrices A''^-1 and k'' = k + k' as
 // arguments, along with the two factors J_R(C) and J_R(C'),
 // and the determinant of A''.
-double overlap(int N, Eigen::MatrixXd& A_dp_inv, Eigen::MatrixXd& k_dp,
-				double JRC, double JRCP, double detA_dp);
+double overlap(int N, Eigen::MatrixXd& A_dp_inv, Eigen::MatrixXd& B_dp, Eigen::MatrixXd& C_dp,
+			   Eigen::MatrixXd& R, double detA_dp, double norm1, double norm2, double JR1, double JR2);
 
 // Kinetic energy integral
 // Takes that matrices A, A'', its inverse A''^-1, k, and k'' as arguments,
 // along with the overlap integral, S, and the parameter mu
-double kinetic(int N, Eigen::MatrixXd& A, Eigen::MatrixXd& A_dp,
-				   Eigen::MatrixXd& A_dp_inv, Eigen::MatrixXd& k,
+double kinetic(int N, Eigen::MatrixXd& A, Eigen::MatrixXd& A_p,
+			   Eigen::MatrixXd& A_dp, Eigen::MatrixXd& A_dp_inv,
+				   Eigen::MatrixXd& k, Eigen::MatrixXd& k_p,
 			   Eigen::MatrixXd& k_dp, double S, double mu);
 
 // Drude potential energy integral
@@ -46,7 +47,8 @@ double coulombPotential(double Rij, double g, double S);
 // basis functions, and the matrix R as arguments,
 // along with the drude parameters, mu, omega, and q
 double hamiltonianElement(int N, BasisFunction& phi1, BasisFunction& phi2,
-				   Eigen::MatrixXd& R, double mu, double omega, double q);
+						  Eigen::MatrixXd& R, double mu, double omega, double q,
+						  Eigen::MatrixXd& Smat, int i, int j);
 
 // Construct the Hamiltonian matrix
 Eigen::MatrixXd hamiltonian(int N, int nbfs,

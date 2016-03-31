@@ -18,6 +18,8 @@ class BasisFunction
 private:
 	Eigen::MatrixXd A, B, C, k;
 	double JR;
+	double norm;
+	bool toosmall;
 public:
 	// Constructor
 	BasisFunction() { }; // Default constructor
@@ -25,6 +27,9 @@ public:
 				  Eigen::MatrixXd beta, Eigen::MatrixXd gamma,
 				  Eigen::MatrixXd R);
 	BasisFunction(const BasisFunction& other); // Copy constructor
+
+	// Calculate norm
+	void calcNorm(Eigen::MatrixXd& R, int N);
 	
 	// Accessors
 	Eigen::MatrixXd& getA() { return A; }
@@ -32,7 +37,8 @@ public:
 	Eigen::MatrixXd& getC() { return C; }
 	Eigen::MatrixXd& getk() { return k; }
 	double getJR() { return JR; }
-	
+	double getNorm();
+	bool istoosmall() { return toosmall; }
 };
 
 #endif 
