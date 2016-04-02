@@ -34,9 +34,8 @@ double overlap(int N, Eigen::MatrixXd& A_dp_inv, Eigen::MatrixXd& B_dp, Eigen::M
 	
 	S =  K * std::pow(S, 1.5) * norm1 * norm2;
 
-	if (S < 1e-12) S = 0.0;
-	if (std::isnan(K) || std::isinf(K)) {  S = 0.0; std::cout << "Dodgy K.\n"; }
-	
+	if (S < 1e-14) S = 0.0;
+		
 	return S;
 }
 
@@ -98,10 +97,21 @@ double kinetic(int N, Eigen::MatrixXd& A, Eigen::MatrixXd& A_p,
 }
 
 // Drude potential integral
-double drudePotential(Eigen::MatrixXd& A_dp_inv, double S,
-					  double mu, double omega)
+double drudePotential(Eigen::MatrixXd& A_dp_inv, Eigen::MatrixXd& B_dp,
+					  Eigen::MatrixXd& R, double S, double mu, double omega, int N)
 {
-   return 0.75*mu*omega*omega * A_dp_inv.trace() * S;
+   double VD =  1.5 * A_dp_inv.trace();
+   Eigen::MatrixXd tempMat = 0.25*B_dp*A_dp_inv*A_dp_inv*B_dp.transpose();
+
+   for (int i = 0; i < N-1; i++){
+	   for (int j = 0; j < N-1; j++){
+		   double temp =R(i, 0)*R(j, 0) + R(i, 1)*R(j, 1);
+		   temp += R(i, 2) * R(j,2);
+		   VD += tempMat(i,j)*temp;
+	   }
+   }
+
+   return 0.5*mu*omega*omega*VD*S;
 }
 
 // Coulomb potential integral
@@ -151,35 +161,57 @@ double hamiltonianElement(int N, BasisFunction& phi1, BasisFunction& phi2,
 	double T = kinetic(N, phi1.getA(), phi2.getA(), A_dp, A_dp_inv, phi1.getk(), phi2.getk(),  k_dp, S, mu);
 
 	// Drude potential energy integral
-	double VD = drudePotential(A_dp_inv, S, mu, omega);
+	double VD = drudePotential(A_dp_inv, B_dp, R, S, mu, omega, N);
 
 	// Now calculate the coulombic potential integrals
 	double VC = 0.0;
 	double Rij = 0.0;
+	std::vector<double> Rij_vec(3);
 	
 	for (int i = 0; i < N-1; i++){
+		Rij_vec[0] = R(i, 0); Rij_vec[1] = R(i, 1); Rij_vec[2] = R(i, 2);
 		Rij = R(i, 0)*R(i, 0) + R(i, 1)*R(i, 1) + R(i, 2)*R(i, 2);
 		Rij = std::sqrt(Rij);
 
 		// Get gi
 		double gi =1.0/A_dp_inv(i, i);
-
+		
 		for (int j = i+1; j < N; j++){
 			// Add the Rij term
 			VC += S/Rij;
 
+			std::vector<double> Pa_vec(3), Pb_vec(3), Pc_vec(3);
+			double Pa = 0, Pb = 0, Pc = 0;
+			for (int m = 0; m < 3; m++){
+				Pa_vec[m] = Rij_vec[m];
+				Pb_vec[m] = Rij_vec[m];
+				Pc_vec[m] = Rij_vec[m];
+				for (int n = 0; n < N; n++){
+					Pa_vec[m] += 0.5*A_dp_inv(i, n) * k_dp(n, m);
+					Pb_vec[m] -= 0.5*A_dp_inv(j, n) * k_dp(n, m);
+					Pc_vec[m] -= 0.5*(A_dp_inv(j, n) - A_dp_inv(i, n))*k_dp(n, m);
+				}
+				Pa += Pa_vec[m]*Pa_vec[m];
+				Pb += Pb_vec[m]*Pb_vec[m];
+				Pc += Pc_vec[m]*Pc_vec[m];
+			}
+			Pa = std::sqrt(Pa);
+			Pb = std::sqrt(Pb);
+			Pc = std::sqrt(Pc);
+			
 			// Get  gj, and gij
 			double gj = 1.0/A_dp_inv(j, j);
 			double gij = A_dp_inv(i, i) + A_dp_inv(j, j) - 2.0*A_dp_inv(i, j);
 			gij = 1.0/gij;
 
 			// Add the aij, bji, cij terms
-			VC += coulombPotential(Rij, gij, S);
-			VC -= coulombPotential(Rij, gi, S);
-			VC -= coulombPotential(Rij, gj, S);
+			VC += coulombPotential(Pc, gij, S);
+			VC -= coulombPotential(Pa, gi, S);
+			VC -= coulombPotential(Pb, gj, S);
 
 			// Update Rij
 			if (j != N-1) { 
+				Rij_vec[0] += R(j, 0); Rij_vec[1] += R(j, 1); Rij_vec[2] += R(j, 2);
 				double temp = R(j, 0)*R(j, 0) +R(j, 1)*R(j, 1) + R(j, 2)*R(j, 2);
 				Rij += std::sqrt(temp);
 			}
@@ -189,7 +221,8 @@ double hamiltonianElement(int N, BasisFunction& phi1, BasisFunction& phi2,
 	VC = q*q*VC;
 
 	double h_el = T + VD + VC;
-
+	//	std::cout << S << " " << T << " " << VD << " " << VC << "\n";
+	
 	if (std::isnan(h_el) || std::isinf(h_el)) {  h_el = 0.0; std::cout << "Dodgy hamiltonian element.\n"; }
 	
 	return h_el;
@@ -209,9 +242,9 @@ Eigen::MatrixXd hamiltonian(int N, int nbfs,
 	Eigen::MatrixXd H(nbfs, nbfs);
 	Eigen::MatrixXd S(nbfs, nbfs);
 	for (int i = 0; i < nbfs; i++){
-		for (int j = 0; j < nbfs; j++){
+		for (int j = i; j < nbfs; j++){
 			H(i, j) = hamiltonianElement(N, bfs[i], bfs[j], R, mu, omega, q, S, i, j);
-			//			H(j, i) = H(i, j);
+			H(j, i) = H(i, j);
 
 			ndone++;
 			if ( ndone == onepercent ){
@@ -221,8 +254,6 @@ Eigen::MatrixXd hamiltonian(int N, int nbfs,
 			}
 		}
 	}
-
-	std::cout << H << "\n\n";
 	
 	std::cout << "\n\nDiagonalising...\n\n";
 	Eigen::GeneralizedSelfAdjointEigenSolver<Eigen::MatrixXd> solver(H, S, Eigen::EigenvaluesOnly);

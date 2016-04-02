@@ -34,8 +34,8 @@ double kinetic(int N, Eigen::MatrixXd& A, Eigen::MatrixXd& A_p,
 // Drude potential energy integral
 // Takes the matrix A''^-1 and the overlap integral S as arguments
 // along with the parameters mu and omega
-double drudePotential(Eigen::MatrixXd& A_dp_inv, double S,
-					  double mu, double omega);
+double drudePotential(Eigen::MatrixXd& A_dp_inv, Eigen::MatrixXd& B_dp, Eigen::MatrixXd& R,
+					  double S, double mu, double omega, int N);
 
 // Coulomb potential energy integrals
 // Takes the quantities Rij, g, and the overlap integral S as arguments

@@ -7,6 +7,7 @@
  *************************************************************/
 
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <cmath>
 #include "basisfunction.hpp"
@@ -63,17 +64,17 @@ int main(int argc, char* argv[])
 	int nbfs = 0;
 	
 	// Make basis functions
-	for (int i = 0; i < nexps; i++){
+	for (int i = 0; i < nexps+1; i++){
 
 		alpha(0, 1) = std::pow(base, minexp + i);
-		if (i == nexps) alpha(0, 1) = 0.0;
+		if (i == nexps)  alpha(0, 1) = 0.0; 
 		
-		for (int j = 0; j < nexps; j++){
+		for (int j = 0; j < nexps+ 1; j++){
 
 			beta(1, 0) = std::pow(base, minexp + j);
 			if (j == nexps) beta(1, 0) = 0.0;
 			
-			for(int k = 0; k < nexps; k++){
+			for(int k = 0; k < nexps+1; k++){
 
 				gamma(0, 1) = std::pow(base, minexp + k);
 				if (k == nexps) gamma(0, 1) = 0.0;
@@ -101,19 +102,10 @@ int main(int argc, char* argv[])
 
 	std::cout << "Hamiltonian formed and solved.\n";
 
-  	std::cout << "Lowest eigenvalue = " ;
-
-	bool more = true;
 	int i = 0;
-	while ( more ) {
-		std::cout << D(i) << "\n";
-		std::cout << "Another?\n";
-		std::cin >> i;
-		if ( i <= 0){
-			more = false;
-		} 
-	}
-	
+	while ( D(i) < 0.1 ) i++;
+  	std::cout << "Lowest eigenvalue = " << std::setprecision(15) << D(i) << "\n" ;
+
 	return 0;
 }
 

@@ -138,7 +138,9 @@ void BasisFunction::calcNorm(Eigen::MatrixXd& R, int N)
 	norm = std::pow(M_PI, N)/detA;
 	norm = std::pow(norm, 0.75);
 	norm = 1.0/norm;
-	
+
+	/*			norm = 1.0;
+				JR = 0.0;*/
 }
 
 double BasisFunction::getNorm()
