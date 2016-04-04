@@ -83,7 +83,7 @@ BasisFunction::BasisFunction(int N, std::vector<double> zeta,
 
 	// Then k = B^T R
 	k = B.transpose()*R;
-	
+
 	// Calculate norm
 	toosmall = false;
 
@@ -132,15 +132,15 @@ void BasisFunction::calcNorm(Eigen::MatrixXd& R, int N)
 			K += tempMat(i, j) * temp;
 		}
 	}
-	JR = K;
+	/*	JR = K;
 		
 	// Calculate the overlap integral
 	norm = std::pow(M_PI, N)/detA;
 	norm = std::pow(norm, 0.75);
 	norm = 1.0/norm;
-
-	/*			norm = 1.0;
-				JR = 0.0;*/
+*/
+				norm = 1.0;
+				JR = 0.0;
 }
 
 double BasisFunction::getNorm()

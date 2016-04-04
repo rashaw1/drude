@@ -12,100 +12,89 @@
 #include <cmath>
 #include "basisfunction.hpp"
 #include "integrals.hpp"
+#include "filereader.hpp"
 
 int main(int argc, char* argv[])
 {
 
-	// Parameters
-	int N = 2;
-	double mu = 0.3020;
-	double omega = 0.7272;
-	double q = 1.3314;
-    int minexp = -2; // minimum exponent
-	int nexps = 2; // number of exponents
-	double base = 2.0;
-	double base2 = 2.0;
-	double zetaval = 1.0;
-	
-	// Geometry
-	Eigen::MatrixXd R(N-1, 3);
-	R(0, 1) = 0.0; R(0, 2) = 0.0;
+	int program = 0;
 
-	// Get input from user
-	std::cout << "Mu:\n";
-	std::cin >> mu;
-	std::cout << "Omega:\n";
-	std::cin >> omega;
-	std::cout << "q:\n";
-	std::cin >> q;
-	std::cout << "R:\n";
-	std::cin >> R(0, 0);
-	std::cout << "Zeta:\n";
-	std::cin >> zetaval;
-	
-	std::cout << "Min. exp:\n";
-	std::cin >> minexp;
-	std::cout << "No. exps:\n";
-	std::cin >> nexps;
-	std::cout << "Exponent base:\n";
-	std::cin >> base;
-	std::cout << "Zeta base:\n";
-	std::cin >> base2;
-	
-    // Initialise array of basis functions
-	std::vector<BasisFunction> bfs;
-	
-	// Make parameter matrices/vectors
-	std::vector<double> zeta(N, zetaval);
-	Eigen::MatrixXd alpha(N, N);
-	Eigen::MatrixXd beta(N, N);
-	Eigen::MatrixXd gamma(N, N);
+	// Get input file from first command line argument
+	if(argc < 3){ // No input file given
+		std::cerr << "Usage: ./drudeh [input_file] [basis_file]\n";
+		program = -1;
+	} else {
+		std::string ifname = argv[1]; // Input filename
+		std::string bfname = argv[2]; // Basis filename
+		std::string ofname = ifname; // Output file prefix
+		std::size_t pos = ofname.find('.');
+		if (pos != std::string::npos) { // Cut off extension
+			ofname.erase(pos, ofname.length());
+		}
+		ofname += ".output";
 
-	int nbfs = 0;
-	
-	// Make basis functions
-	for (int i = 0; i < nexps+1; i++){
+		// Open the input file
+		std::ifstream input(ifname);
+		// Check it opened successfully
+		if (!input.is_open()){
+			std::cerr << "Failed to open input file.\n";
+			program = -1;
+		} else {
 
-		alpha(0, 1) = std::pow(base, minexp + i);
-		if (i == nexps)  alpha(0, 1) = 0.0; 
-		
-		for (int j = 0; j < nexps+ 1; j++){
+			// Declare and read parameters
+			int N;
+			std::vector<double> mu, omega, q;
+			N = readParams(input, mu, omega, q);
 
-			beta(1, 0) = std::pow(base, minexp + j);
-			if (j == nexps) beta(1, 0) = 0.0;
-			
-			for(int k = 0; k < nexps+1; k++){
+			// Make the zeta vector
+			std::vector<double> zeta(N);
+			for (int i = 0; i < N; i++) zeta[i] = 0.5*mu[i]*omega[i];
 
-				gamma(0, 1) = std::pow(base, minexp + k);
-				if (k == nexps) gamma(0, 1) = 0.0;
-
-				for (int m = 0; m < 1; m++){
-					zeta[0] = zetaval*std::pow(base2, m);
-
-					for (int n = 0; n < 1; n++){
-						zeta[1] = zetaval*std::pow(base2, n);
+			// Geometry
+			Eigen::MatrixXd R(N-1, 3);
+			// Rewind input file
+			input.clear();
+			input.seekg(0, std::ios::beg);
+			// Read in geometry
+			readGeom(input, R, N);
+						
+			// Open basis file
+			std::ifstream basis(bfname);
+			// Check if opened successfully
+			if (!basis.is_open()){
+				std::cerr << "Failed to open basis file.\n";
+				program = -1;
+			} else {
 				
-						BasisFunction bftemp(N, zeta, alpha, beta, gamma, R);
-						if(!bftemp.istoosmall()){
-							bfs.push_back(bftemp);
-							nbfs++;
-						}
-					}
-				}
+				// Initialise array of basis functions
+				std::vector<BasisFunction> bfs;
+								
+				// Read in the basis functions
+				int nbfs = readBasis(basis, bfs, N, zeta, R);
+
+				// Form and diagonalise hamiltonian matrix
+				Eigen::MatrixXd D = hamiltonian(N, nbfs, bfs, R, mu, omega, q);
+
+				// Find lowest non-zero eigenvalue
+				int i = 0;
+				double lowest_eig = 0.0;
+				while ( D(i) < 0.1 ) i++;
+				if ( i < nbfs ) 
+					lowest_eig = D(i);  
+								
+				// Open output file
+				std::ofstream output(ofname);
+				if (!output.is_open()){
+					std::cout << "Couldn't open output file.\n";
+					std::cout << "Total number of basis functions = " << nbfs << "\n";
+					std::cout << "Lowest eigenvalue = " << std::setprecision(15) << lowest_eig << "\n";
+				} else {
+					output << "Total number of basis functions = " << nbfs << "\n";
+					output << "Lowest eigenvalue = "<< std::setprecision(15) << lowest_eig << "\n";
+ 				}
 			}
 		}
 	}
-	std::cout << "Total number of basis functions = " << nbfs << "\n";
-	
-	// Form and diagonalise hamiltonian matrix
-	Eigen::MatrixXd D = hamiltonian(N, nbfs, bfs, R, mu, omega, q); 
-
-	std::cout << "Hamiltonian formed and solved.\n";
-
-	int i = 0;
-	while ( D(i) < 0.1 ) i++;
-  	std::cout << "Lowest eigenvalue = " << std::setprecision(15) << D(i) << "\n" ;
-
-	return 0;
+	return program;
 }
 

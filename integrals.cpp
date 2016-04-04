@@ -34,8 +34,6 @@ double overlap(int N, Eigen::MatrixXd& A_dp_inv, Eigen::MatrixXd& B_dp, Eigen::M
 	
 	S =  K * std::pow(S, 1.5) * norm1 * norm2;
 
-	if (S < 1e-14) S = 0.0;
-		
 	return S;
 }
 
@@ -43,13 +41,13 @@ double overlap(int N, Eigen::MatrixXd& A_dp_inv, Eigen::MatrixXd& B_dp, Eigen::M
 double kinetic(int N, Eigen::MatrixXd& A, Eigen::MatrixXd& A_p,
 			   Eigen::MatrixXd& A_dp, Eigen::MatrixXd& A_dp_inv,
 			   Eigen::MatrixXd& k, Eigen::MatrixXd& k_p,
-			   Eigen::MatrixXd& k_dp, double S, double mu)
+			   Eigen::MatrixXd& k_dp, double S, Eigen::MatrixXd& L2)
 {
 	// Calculate the T factor
-	// Start with A''^{-1} A^2 A''^{-1}
-	Eigen::MatrixXd tempMat = A_dp_inv*A_p*A*A_dp_inv;
+	// Start with A''^{-1} A' L2 A A''^{-1}
+	Eigen::MatrixXd tempMat = A_dp_inv*A_p*L2*A*A_dp_inv;
 	
-	// Determine k''. A''^{-1} A' A A''^{-1} . k''
+	// Determine k''. A''^{-1} A' L2  A A''^{-1} . k''
 	double T = 0.0;
   	for (int i = 0; i < N; i++){
 		for (int j = 0; j < N; j++){
@@ -59,15 +57,15 @@ double kinetic(int N, Eigen::MatrixXd& A, Eigen::MatrixXd& A_p,
 		}
 	}
 
-	// Then k . k'
+	// Then k . L2 .  k'
 	for (int i = 0; i < N; i++){
-			T += k(i, 0) * k_p(i, 0);
-			T += k(i, 1) * k_p(i, 1);
-			T += k(i, 2) * k_p(i, 2);
+		T += k(i, 0) * L2(i, i) *  k_p(i, 0);
+		T += k(i, 1) * L2(i, i) * k_p(i, 1);
+		T += k(i, 2) * L2(i, i) * k_p(i, 2);
 	}
 
-	// And -k'.A A''^{-1}.k''
-	tempMat = A*A_dp_inv;
+	// And -k'.A L2 A''^{-1}.k''
+	tempMat = A*L2*A_dp_inv;
 	for (int i = 0; i < N; i++){
 		for (int j = 0; j < N; j++){
 			double temp = k_p(i, 0) * k_dp(j, 0);
@@ -76,8 +74,8 @@ double kinetic(int N, Eigen::MatrixXd& A, Eigen::MatrixXd& A_p,
 		}
 	}
 	
-	// And -k''.A''^-1 A'.k
-	tempMat = A_dp_inv * A_p;
+	// And -k''.A''^-1 L2 A'.k
+	tempMat = A_dp_inv * L2 *  A_p;
 	for (int i = 0; i < N; i++){
 		for (int j = 0; j < N; j++){
 			double temp = k_dp(i, 0) * k(j, 0);
@@ -87,21 +85,21 @@ double kinetic(int N, Eigen::MatrixXd& A, Eigen::MatrixXd& A_p,
 	}
 
 	
-	// This just leaves 6Tr{A A''^-1 A'} 
-	tempMat = A * A_dp_inv * A_p;
+	// This just leaves 6Tr{A A''^-1 A' L2} 
+	tempMat = A * A_dp_inv * A_p*L2;
 	T += 6.0*tempMat.trace(); 
 
-	T = T*S/(2.0*mu);
+	T = 0.5*T*S;
 	
 	return T;
 }
 
 // Drude potential integral
 double drudePotential(Eigen::MatrixXd& A_dp_inv, Eigen::MatrixXd& B_dp,
-					  Eigen::MatrixXd& R, double S, double mu, double omega, int N)
+					  Eigen::MatrixXd& R, double S, Eigen::MatrixXd& M, int N)
 {
-   double VD =  1.5 * A_dp_inv.trace();
-   Eigen::MatrixXd tempMat = 0.25*B_dp*A_dp_inv*A_dp_inv*B_dp.transpose();
+	double VD =  1.5 * (M*A_dp_inv).trace();
+   Eigen::MatrixXd tempMat = 0.25*B_dp*A_dp_inv*M*A_dp_inv*B_dp.transpose();
 
    for (int i = 0; i < N-1; i++){
 	   for (int j = 0; j < N-1; j++){
@@ -111,7 +109,7 @@ double drudePotential(Eigen::MatrixXd& A_dp_inv, Eigen::MatrixXd& B_dp,
 	   }
    }
 
-   return 0.5*mu*omega*omega*VD*S;
+   return 0.5*VD*S;
 }
 
 // Coulomb potential integral
@@ -119,14 +117,14 @@ double coulombPotential(double Rij, double g, double S)
 {
 	double V = std::erf(std::sqrt(g) * Rij);
 	V = V*S/Rij;
-	
+
 	return V;
 }
 
 // Get the total hamiltonian matrix element between phi1 and phi2
 double hamiltonianElement(int N, BasisFunction& phi1, BasisFunction& phi2,
-						  Eigen::MatrixXd& R, double mu, double omega, double q,
-						  Eigen::MatrixXd& Smat, int s_i, int s_j)
+						  Eigen::MatrixXd& R, Eigen::MatrixXd& L2, Eigen::MatrixXd& M,
+						  std::vector<double> q, Eigen::MatrixXd& Smat, int s_i, int s_j)
 {
 
 	// Construct the double-primed matrices
@@ -158,10 +156,10 @@ double hamiltonianElement(int N, BasisFunction& phi1, BasisFunction& phi2,
 	Smat(s_j, s_i) = S;
 	
 	// Kinetic energy integral
-	double T = kinetic(N, phi1.getA(), phi2.getA(), A_dp, A_dp_inv, phi1.getk(), phi2.getk(),  k_dp, S, mu);
+	double T = kinetic(N, phi1.getA(), phi2.getA(), A_dp, A_dp_inv, phi1.getk(), phi2.getk(),  k_dp, S, L2);
 
 	// Drude potential energy integral
-	double VD = drudePotential(A_dp_inv, B_dp, R, S, mu, omega, N);
+	double VD = drudePotential(A_dp_inv, B_dp, R, S, M, N);
 
 	// Now calculate the coulombic potential integrals
 	double VC = 0.0;
@@ -172,13 +170,13 @@ double hamiltonianElement(int N, BasisFunction& phi1, BasisFunction& phi2,
 		Rij_vec[0] = R(i, 0); Rij_vec[1] = R(i, 1); Rij_vec[2] = R(i, 2);
 		Rij = R(i, 0)*R(i, 0) + R(i, 1)*R(i, 1) + R(i, 2)*R(i, 2);
 		Rij = std::sqrt(Rij);
-
+		
 		// Get gi
 		double gi =1.0/A_dp_inv(i, i);
 		
 		for (int j = i+1; j < N; j++){
 			// Add the Rij term
-			VC += S/Rij;
+			double VC_temp = S/Rij;
 
 			std::vector<double> Pa_vec(3), Pb_vec(3), Pc_vec(3);
 			double Pa = 0, Pb = 0, Pc = 0;
@@ -205,10 +203,11 @@ double hamiltonianElement(int N, BasisFunction& phi1, BasisFunction& phi2,
 			gij = 1.0/gij;
 
 			// Add the aij, bji, cij terms
-			VC += coulombPotential(Pc, gij, S);
-			VC -= coulombPotential(Pa, gi, S);
-			VC -= coulombPotential(Pb, gj, S);
+			VC_temp += coulombPotential(Pc, gij, S);
+			VC_temp -= coulombPotential(Pa, gi, S);
+			VC_temp -= coulombPotential(Pb, gj, S);
 
+			VC += q[i]*q[j]*VC_temp;
 			// Update Rij
 			if (j != N-1) { 
 				Rij_vec[0] += R(j, 0); Rij_vec[1] += R(j, 1); Rij_vec[2] += R(j, 2);
@@ -218,7 +217,6 @@ double hamiltonianElement(int N, BasisFunction& phi1, BasisFunction& phi2,
 
 		}
 	}
-	VC = q*q*VC;
 
 	double h_el = T + VD + VC;
 	//	std::cout << S << " " << T << " " << VD << " " << VC << "\n";
@@ -231,19 +229,31 @@ double hamiltonianElement(int N, BasisFunction& phi1, BasisFunction& phi2,
 // Construct the Hamiltonian matrix
 Eigen::MatrixXd hamiltonian(int N, int nbfs,
 						   std::vector<BasisFunction> bfs, Eigen::MatrixXd& R,
-							double mu, double omega, double q)
+							std::vector<double> mu, std::vector<double> omega,
+							std::vector<double> q)
 {
 	int nelements = ( nbfs*(nbfs+1) ) / 2;
 	int onepercent = nelements/100;
 
 	std::cout << "Progress:\n";
 	int ndone = 0;
+
+	// Make the L2 and M matrices
+	Eigen::MatrixXd L2(N, N), M(N, N);
+	for (int i = 0; i < N; i++){
+		L2(i, i) = 1.0/mu[i];
+		M(i, i) = mu[i]*omega[i]*omega[i];
+		for (int j = i+1; j < N; j++) {
+			L2(i, j) = 0.0; M(i, j) = 0.0;
+			L2(j, i) = 0.0; M(j, i) = 0.0;
+		}
+	}	
 	
 	Eigen::MatrixXd H(nbfs, nbfs);
 	Eigen::MatrixXd S(nbfs, nbfs);
 	for (int i = 0; i < nbfs; i++){
 		for (int j = i; j < nbfs; j++){
-			H(i, j) = hamiltonianElement(N, bfs[i], bfs[j], R, mu, omega, q, S, i, j);
+			H(i, j) = hamiltonianElement(N, bfs[i], bfs[j], R, L2, M, q, S, i, j);
 			H(j, i) = H(i, j);
 
 			ndone++;
@@ -254,7 +264,7 @@ Eigen::MatrixXd hamiltonian(int N, int nbfs,
 			}
 		}
 	}
-	
+
 	std::cout << "\n\nDiagonalising...\n\n";
 	Eigen::GeneralizedSelfAdjointEigenSolver<Eigen::MatrixXd> solver(H, S, Eigen::EigenvaluesOnly);
 	return solver.eigenvalues();
