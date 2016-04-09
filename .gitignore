@@ -16,3 +16,4 @@
 ./twodrude/*.o
 ./twodrude/*.so
 ./twodrude/*.out
+./ewald/*.x

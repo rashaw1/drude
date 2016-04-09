@@ -116,7 +116,9 @@ double drudePotential(Eigen::MatrixXd& A_dp_inv, Eigen::MatrixXd& B_dp,
 double coulombPotential(double Rij, double g, double S)
 {
 	double V = std::erf(std::sqrt(g) * Rij);
-	V = V*S/Rij;
+	if ( Rij > 0.0 )
+		V = V*S/Rij;
+	else V = 0.0;
 
 	return V;
 }
@@ -196,7 +198,7 @@ double hamiltonianElement(int N, BasisFunction& phi1, BasisFunction& phi2,
 			Pa = std::sqrt(Pa);
 			Pb = std::sqrt(Pb);
 			Pc = std::sqrt(Pc);
-			
+
 			// Get  gj, and gij
 			double gj = 1.0/A_dp_inv(j, j);
 			double gij = A_dp_inv(i, i) + A_dp_inv(j, j) - 2.0*A_dp_inv(i, j);
@@ -219,7 +221,6 @@ double hamiltonianElement(int N, BasisFunction& phi1, BasisFunction& phi2,
 	}
 
 	double h_el = T + VD + VC;
-	//	std::cout << S << " " << T << " " << VD << " " << VC << "\n";
 	
 	if (std::isnan(h_el) || std::isinf(h_el)) {  h_el = 0.0; std::cout << "Dodgy hamiltonian element.\n"; }
 	
