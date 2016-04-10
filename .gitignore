@@ -17,3 +17,4 @@
 ./twodrude/*.so
 ./twodrude/*.out
 ./ewald/*.x
+./VMC/*.x

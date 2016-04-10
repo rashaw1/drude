@@ -1,0 +1,5 @@
+nwalkers 10000
+ndrude 2
+nsteps 10000
+nequil 2000
+timestep 0.1d0
