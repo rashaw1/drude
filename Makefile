@@ -1,18 +1,18 @@
 # Project name
 PROJECT = drudeh
 # Compiler
-CXX = c++
+CXX = icpc
 
 # Run Options
 COMMANDLINE_OPTIONS = 
 
 # Compiler options
-DEBUG = -g -Wall -O0 -stdlib=libc++ -D_GLIBCXX_DEBUG
-OPTIM = -O3 -Wall -stdlib=libc++
+DEBUG = -g -Wall -O0 -std=c++11 -D_GLIBCXX_DEBUG
+OPTIM = -O3 -Wall -std=c++11
 COMPILE_OPTIONS = $(OPTIM)
 
 # Header include directories
-HEADERS = -I/usr/local/Cellar/eigen/3.2.5/include/eigen3
+HEADERS = -I/usr/local/Cellar/eigen/3.2.9/include/eigen3
 
 # Libraries for linking
 LIBS = -stdlib=libc++ 

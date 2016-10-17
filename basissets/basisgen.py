@@ -1,7 +1,7 @@
-BASISNAME = "tiny_2.basis"
+BASISNAME = "standard.basis"
 BASE = 2.0
-MINEXP = -1
-NEXPS = 3
+MINEXP = -3
+NEXPS = 7
 
 outfile = open(BASISNAME, 'w')
 

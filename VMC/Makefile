@@ -1,5 +1,5 @@
 F95 = gfortran
-FFLAGS = -O -C
+FFLAGS = -O -C 
 GNUPLOT = gnuplot
 
 %.o: %.f95
