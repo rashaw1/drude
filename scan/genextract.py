@@ -8,8 +8,8 @@ QMIN = 0.5
 QMAX = 2.0
 NQ = 31
 
-RMIN = 0.1
-RMAX = 2.5
+RMIN = 0.4
+RMAX = 10.0
 NR = 25
 
 # Main routine

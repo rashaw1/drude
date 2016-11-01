@@ -1,5 +1,5 @@
 nwalkers 15000
 ndrude 2
-nsteps 20000
-nequil 4000
-timestep 0.05d0
+nsteps 500000
+nequil 100000
+timestep 0.001d0

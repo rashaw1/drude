@@ -26,8 +26,9 @@ program vmc
   real(dbl)                                  :: rand, psiold, psinew
   real(dbl)                                  :: eold, enew, ekinloc, rho, enew_sum
   real(dbl), allocatable, dimension(:, :)    :: grads
-
-  integer                                    :: iwalker, j, k, istep
+  
+  integer                                    :: iwalker, j, k, istep, icount
+  character(len=10)                          :: time, date
   
   ! Read in parameters
   call vmc_read_input(nwalk, ndrude, nsteps, nequil, dt)
@@ -70,16 +71,21 @@ program vmc
      enddo
   enddo
 
+  call date_and_time(time=time, date=date)
+
   write(*, *) 'VARIATIONAL MONTE CARLO FOR DRUDE OSCILLATORS'
-  write(*, *) 'Robert Shaw'
+  write(*, *) 'Robert Shaw 2016'
+  write(*, *) 'Date: ', date(7:8), '/', date(5:6), '/', date(1:4)
+  write(*, *) 'Time: ', time(1:2), ':', time(3:4)
   write(*, *) ''
   write(*, *) 'Beginning equilibration:'
   write(*, *) 'nequil =', nequil
   write(*, *) ''
 
-10 format(1X, I5, F15.8, F15.8)
-  write(*, '(1X, A5, A15, A15)') 'Step', 'E Step', 'E Avg'
-  do istep = 1, nequil
+10 format(1X, I8, F15.8, F15.8)
+  write(*, '(1X, A8, A15, A15)') 'Step', 'E Step', 'E Avg'
+  icount = 1
+  do istep = 1, nequil + nsteps
      enew_sum = 0d0
      do iwalker = 1, nwalk
         rk(:, :) = walkers(iwalker, :, :)
@@ -106,44 +112,22 @@ program vmc
         eold = enew
 
      enddo
-     write(*, 10) istep, enew_sum/dble(nwalk), e_sum/(dble(istep*nwalk))
+     write(*, 10) istep, enew_sum/dble(nwalk), e_sum/(dble(icount*nwalk))
+     
+     icount = icount + 1
+
+     if ( istep == nequil ) then
+        ! Move on to main run
+        write(*, *) 'Finished equilibration, beginning main run:'
+        write(*, *) 'nsteps =', nsteps
+        write(*, *) ''
+        e_sum = 0d0
+        e_sq_sum = 0d0
+        icount = 1
+     endif
+        
   enddo
   
-  write(*, *) 'Finished equilibration, beginning main run:'
-  write(*, *) 'nsteps =', nsteps
-  write(*, *) ''
-
-  e_sum = 0d0
-  e_sq_sum = 0d0
-  do istep = 1, nsteps
-     enew_sum = 0d0
-     do iwalker = 1, nwalk
-        rk(:, :) = walkers(iwalker, :, :)
-        call calc_wf_derivatives(rk, R, psiold, grads, ekinloc)
-        call calc_energy(ndrude, rk, R, p_mu, p_q, p_omega, ekinloc, psiold, eold)
-
-        call move(ndrude, rk, rknew, dt)
-        call calc_wf_derivatives(rknew, R, psinew, grads, ekinloc)
-
-        rand = random_uniform(0d0, 1d0)
-        rho = psinew**2 / psiold**2
-        enew = eold
-        if (rho > rand) then
-           call calc_energy(ndrude, rknew, R, p_mu, p_q, p_omega, ekinloc, psinew, enew)
-           walkers(iwalker, :, :) = rknew(:, :)
-           psiold = psinew
-        end if
-
-        ! Accumulate
-        e_sum = e_sum + enew
-        enew_sum = enew_sum + enew
-        e_sq_sum = e_sq_sum + enew**2
-
-        eold = enew
-     enddo
-     write(*, 10) istep+nequil, enew_sum/dble(nwalk), e_sum/(dble(istep*nwalk))
-  enddo
-
   call fin_drude()
   
   ! Write output

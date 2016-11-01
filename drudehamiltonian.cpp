@@ -76,11 +76,11 @@ int main(int argc, char* argv[])
 				Eigen::MatrixXd D = hamiltonian(N, nbfs, bfs, R, mu, omega, q);
 
 				// Find lowest non-zero eigenvalue
-				int i = 0;
-				double lowest_eig = 0.0;
-				while ( D(i) < 0.1 ) i++;
-				if ( i < nbfs ) 
-					lowest_eig = D(i);  
+				//int i = 0;
+	     			double lowest_eig = D(0);
+				// while ( D(i) < 0.1 ) i++;
+				// if ( i < nbfs ) 
+				//lowest_eig = D(i);  
 								
 				// Open output file
 				std::ofstream output(ofname);
