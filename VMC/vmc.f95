@@ -11,6 +11,7 @@ program vmc
   use random
   use vmc_input
   use n_drude_wf
+  use omp_lib
 
   implicit none
   
@@ -24,9 +25,10 @@ program vmc
   real(dbl)                                  :: dt ! Step size
   real(dbl)                                  :: e_sum, e_sq_sum ! Accumulators
   real(dbl)                                  :: rand, psiold, psinew
-  real(dbl)                                  :: eold, enew, ekinloc, rho, enew_sum
+  real(dbl)                                  :: eold, enew, ekinloc, rho, enew_sum, enewsq_sum
   real(dbl), allocatable, dimension(:, :)    :: grads
-  
+  real(dbl)                                  :: start_time, end_time
+
   integer                                    :: iwalker, j, k, istep, icount
   character(len=10)                          :: time, date
   
@@ -85,8 +87,15 @@ program vmc
 10 format(1X, I8, F15.8, F15.8)
   write(*, '(1X, A8, A15, A15)') 'Step', 'E Step', 'E Avg'
   icount = 1
+  start_time = OMP_GET_WTIME()
   do istep = 1, nequil + nsteps
      enew_sum = 0d0
+     enewsq_sum = 0d0
+     !$OMP parallel default(none), shared(R, ndrude, p_mu, p_q, p_omega, walkers), &
+     !$OMP private(rk, psiold, grads, ekinloc, eold, rknew, psinew, rand, rho, enew, iwalker), &
+     !$OMP reduction(+: enewsq_sum, e_sq_sum)
+     
+     !$OMP do
      do iwalker = 1, nwalk
         rk(:, :) = walkers(iwalker, :, :)
         call calc_wf_derivatives(rk, R, psiold, grads, ekinloc)
@@ -105,13 +114,16 @@ program vmc
         end if
 
         ! Accumulate
-        e_sum = e_sum + enew
         enew_sum = enew_sum + enew
-        e_sq_sum = e_sq_sum + enew**2
+        enewsq_sum = enewsq_sum + enew**2
 
         eold = enew
 
      enddo
+     !$OMP end do
+     !$OMP end parallel
+     e_sum = e_sum + enew_sum
+     e_sq_sum = e_sq_sum + enewsq_sum
      write(*, 10) istep, enew_sum/dble(nwalk), e_sum/(dble(icount*nwalk))
      
      icount = icount + 1
@@ -127,7 +139,8 @@ program vmc
      endif
         
   enddo
-  
+  end_time = OMP_GET_WTIME()
+
   call fin_drude()
   
   ! Write output
@@ -138,7 +151,8 @@ program vmc
   write(*, '(1X, A15, F15.8)') 'Average energy: ', e_sum
   write(*, '(1X, A15, F15.8)') 'Variance: ', e_sq_sum - e_sum**2
   write(*, '(1X, A15, F15.8)') 'Std. dev.: ', sqrt(e_sq_sum-e_sum**2)
- 
+  write(*, '(1X, A15, F15.8)') 'Time elapsed: ', end_time - start_time
+
 contains
 
   subroutine calc_energy(nd, rk, R, mu, q, omega, ekinloc, psi, e)
